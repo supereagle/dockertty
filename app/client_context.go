@@ -19,12 +19,14 @@ import (
 )
 
 type clientContext struct {
-	app        *App
-	request    *http.Request
-	connection *websocket.Conn
-	command    *exec.Cmd
-	pty        *os.File
-	writeMutex *sync.Mutex
+	app           *App
+	request       *http.Request
+	connection    *websocket.Conn
+	command       *exec.Cmd
+	commandPrompt string
+	pty           *os.File
+	writeMutex    *sync.Mutex
+	containerId   string
 }
 
 const (
@@ -41,6 +43,8 @@ const (
 	SetReconnect   = '4'
 )
 
+const getProcIdCmd = "echo $$\n"
+
 type argResizeTerminal struct {
 	Columns float64
 	Rows    float64
@@ -55,6 +59,7 @@ type ContextVars struct {
 
 func (context *clientContext) goHandleClient() {
 	exit := make(chan bool, 2)
+	processId := context.getProcessId()
 
 	go func() {
 		defer func() { exit <- true }()
@@ -93,9 +98,39 @@ func (context *clientContext) goHandleClient() {
 		// Read(0 in processSend() keeps blocking and the process doen't exit
 		context.command.Process.Signal(syscall.Signal(context.app.options.CloseSignal))
 
+		// Kill the process in container
+		if len(strings.TrimSpace(processId)) != 0 {
+			cmd := exec.Command("docker", "exec", context.containerId, "kill", "-9", processId)
+			cmd.Run()
+		}
+
 		context.command.Wait()
 		context.connection.Close()
 	}()
+}
+
+func (context *clientContext) getProcessId() string {
+	_, err := context.pty.Write([]byte(getProcIdCmd))
+	if err != nil {
+		log.Printf("Failed to exec command to get process id as %s", err.Error())
+		return ""
+	}
+
+	// Get the current process id
+	buf := make([]byte, 1024)
+	size, err := context.pty.Read(buf)
+	if err != nil {
+		log.Printf("Failed to get the current process id as %s", err.Error())
+		return ""
+	}
+
+	outputs := strings.Split(string(buf[:size]), "\n")
+	if len(outputs) != 3 {
+		log.Printf("The output of get process command has error: %v", outputs)
+		return ""
+	}
+
+	return strings.Trim(outputs[1], "\r")
 }
 
 func (context *clientContext) processSend() {

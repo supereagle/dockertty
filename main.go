@@ -8,7 +8,7 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/yudai/gotty/app"
+	"github.com/supereagle/dockertty/app"
 )
 
 func main() {
@@ -68,12 +68,6 @@ func main() {
 	)
 
 	cmd.Action = func(c *cli.Context) {
-		if len(c.Args()) == 0 {
-			fmt.Println("Error: No command given.\n")
-			cli.ShowAppHelp(c)
-			exit(err, 1)
-		}
-
 		options := app.DefaultOptions
 
 		configFile := c.String("config")

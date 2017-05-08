@@ -30,6 +30,8 @@ import (
 	"github.com/yudai/umutex"
 )
 
+const commandPromptPrefix = "sh-4.1"
+
 type InitMessage struct {
 	Arguments string `json:"Arguments,omitempty"`
 	AuthToken string `json:"AuthToken,omitempty"`
@@ -352,22 +354,6 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 		return
 	}
-	argv := app.command[1:]
-	if app.options.PermitArguments {
-		if init.Arguments == "" {
-			init.Arguments = "?"
-		}
-		query, err := url.Parse(init.Arguments)
-		if err != nil {
-			log.Print("Failed to parse arguments")
-			conn.Close()
-			return
-		}
-		params := query.Query()["arg"]
-		if len(params) != 0 {
-			argv = append(argv, params...)
-		}
-	}
 
 	app.server.StartRoutine()
 
@@ -382,28 +368,49 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cmd := exec.Command(app.command[0], argv...)
+	containerId := strings.TrimSpace(r.URL.Query().Get("containerId"))
+	cmd := exec.Command("docker", "exec", "-it", containerId, "sh")
 	ptyIo, err := pty.Start(cmd)
 	if err != nil {
-		log.Print("Failed to execute command")
+		log.Printf("Failed to execute command as %s", err.Error())
+		conn.Close()
+		return
+	}
+
+	// Check the errors when start the command
+	buf := make([]byte, 1024)
+	size, err := ptyIo.Read(buf)
+	if err != nil {
+		log.Printf("Failed to read the init message as %s", err.Error())
+		conn.Close()
+		ptyIo.Close()
+		return
+	}
+	commandPrompt := string(buf[:size])
+	if !strings.HasPrefix(commandPrompt, commandPromptPrefix) {
+		log.Print("Error: " + commandPrompt)
+		conn.Close()
+		ptyIo.Close()
 		return
 	}
 
 	if app.options.MaxConnection != 0 {
-		log.Printf("Command is running for client %s with PID %d (args=%q), connections: %d/%d",
-			r.RemoteAddr, cmd.Process.Pid, strings.Join(argv, " "), connections, app.options.MaxConnection)
+		log.Printf("Command is running for client %s with PID %d, connections: %d/%d",
+			r.RemoteAddr, cmd.Process.Pid, connections, app.options.MaxConnection)
 	} else {
-		log.Printf("Command is running for client %s with PID %d (args=%q), connections: %d",
-			r.RemoteAddr, cmd.Process.Pid, strings.Join(argv, " "), connections)
+		log.Printf("Command is running for client %s with PID %d, connections: %d",
+			r.RemoteAddr, cmd.Process.Pid, connections)
 	}
 
 	context := &clientContext{
-		app:        app,
-		request:    r,
-		connection: conn,
-		command:    cmd,
-		pty:        ptyIo,
-		writeMutex: &sync.Mutex{},
+		app:           app,
+		request:       r,
+		connection:    conn,
+		command:       cmd,
+		commandPrompt: commandPrompt,
+		pty:           ptyIo,
+		writeMutex:    &sync.Mutex{},
+		containerId:   containerId,
 	}
 
 	context.goHandleClient()
