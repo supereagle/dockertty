@@ -87,7 +87,7 @@ var Version = "0.0.13"
 var DefaultOptions = Options{
 	Address:             "",
 	Port:                "8080",
-	PermitWrite:         false,
+	PermitWrite:         true,
 	EnableBasicAuth:     false,
 	Credential:          "",
 	EnableRandomUrl:     false,
