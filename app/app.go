@@ -216,10 +216,7 @@ func (app *App) Run() error {
 	if app.options.EnableTLS {
 		scheme = "https"
 	}
-	log.Printf(
-		"Server is starting with command: %s",
-		strings.Join(app.command, " "),
-	)
+
 	if app.options.Address != "" {
 		log.Printf(
 			"URL: %s",
@@ -403,14 +400,13 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	context := &clientContext{
-		app:           app,
-		request:       r,
-		connection:    conn,
-		command:       cmd,
-		commandPrompt: commandPrompt,
-		pty:           ptyIo,
-		writeMutex:    &sync.Mutex{},
-		containerId:   containerId,
+		app:         app,
+		request:     r,
+		connection:  conn,
+		command:     cmd,
+		pty:         ptyIo,
+		writeMutex:  &sync.Mutex{},
+		containerId: containerId,
 	}
 
 	context.goHandleClient()

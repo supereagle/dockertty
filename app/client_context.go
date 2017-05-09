@@ -19,14 +19,13 @@ import (
 )
 
 type clientContext struct {
-	app           *App
-	request       *http.Request
-	connection    *websocket.Conn
-	command       *exec.Cmd
-	commandPrompt string
-	pty           *os.File
-	writeMutex    *sync.Mutex
-	containerId   string
+	app         *App
+	request     *http.Request
+	connection  *websocket.Conn
+	command     *exec.Cmd
+	pty         *os.File
+	writeMutex  *sync.Mutex
+	containerId string
 }
 
 const (
