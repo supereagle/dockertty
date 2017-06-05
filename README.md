@@ -2,7 +2,7 @@
 
 DockerTTY is a simple command line tool that provides terminal over web for remote docker container.
 
-DockerTTY is based on the work of [GoTTY](https://github.com/yudai/gotty), but with following features:
+DockerTTY is based on the work of [GoTTY v1.0.0](https://github.com/yudai/gotty), but with following features:
 - Provides terminal over web for remote docker container
 - Allow to run command in the container like `docker exec -it ${containerId} sh`
 - Do not leave legacy processes in container
