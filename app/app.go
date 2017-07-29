@@ -384,12 +384,6 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	commandPrompt := string(buf[:size])
-	if !strings.HasPrefix(commandPrompt, commandPromptPrefix) {
-		log.Print("Error: " + commandPrompt)
-		conn.Close()
-		ptyIo.Close()
-		return
-	}
 
 	if app.options.MaxConnection != 0 {
 		log.Printf("Command is running for client %s with PID %d, connections: %d/%d",
